@@ -658,10 +658,8 @@ def highbrightness_from_dir(imagepath,savepath):
 from PIL import Image
 import scipy.misc
 import cv2
-import matplotlib
 
-
-# ##最邻近插值算法  
+# ##最邻近插值算法
 def interpolate_adjacent(src, ri, rf, rc, ti, tf, tc):
     r = 0
     t = 0
@@ -676,7 +674,7 @@ def interpolate_adjacent(src, ri, rf, rc, ti, tf, tc):
     out = src[r][t]
     return out
 
-###双线性插值  
+###双线性插值
 def interpolate_bilinear(src, ri, rf, rc, ti, tf, tc):
     if rf == rc & tc == tf:
         out = src[rc][tc]
@@ -690,7 +688,7 @@ def interpolate_bilinear(src, ri, rf, rc, ti, tf, tc):
         out = (ri - rf)*inter_r2 + (rc - ri)*inter_r1
     return out  
 
-####三次卷积算法  
+####三次卷积算法
 def interpolate_bitriple(src, ri, rf, rc, ti, tf, tc, rows, cols):
     rf_1 = rf - 1
     rc_1 = rc + 1
@@ -740,9 +738,9 @@ def interpolate_bitriple(src, ri, rf, rc, ti, tf, tc, rows, cols):
         out = np.dot(np.dot(A, B), C)
     return out  
 
-# #输入参数src: 源图像矩阵（方图，笛卡尔坐标）  
-# #输入参数d: 目标图像直径  
-# #返回：dst：目标图像矩阵（圆图，极坐标）    
+# #输入参数src: 源图像矩阵（方图，笛卡尔坐标）
+# #输入参数d: 目标图像直径
+# #返回：dst：目标图像矩阵（圆图，极坐标）
 def polar_transform(src, d):
     # #初始换目标图像矩阵
     dst = np.zeros((d, d), dtype=np.float)
@@ -797,10 +795,78 @@ def polar_transform(src, d):
     
     return dst
 
+# #输入参数src: 源图像矩阵（方图，笛卡尔坐标）
+# #输入参数d: 目标图像直径
+# #返回：dst：目标图像矩阵（圆图，极坐标）
+def polar3_transform(src, d):
+    shape = src.shape
+    
+    # #初始化 目标图像矩阵
+    dst = np.zeros(shape)
+    cols = width = shape[1] # 获取图片的列数 也就是宽
+    rows = height = shape[0] # 获取图片的行数 也就是高
+    # lens = len(shape)
+  
+    line_len = height # rows
+    line_num = width # cols
+    
+    # #径向步长
+    delta_r = line_len/((d - 1)/2.0)
+    
+    # #切向（旋转角度）步长  
+    delta_t = 2.0*np.pi/line_num
+    ox = (d - 1)/2.0
+    oy = (d - 1)/2.0
+    
+    for i in range(0, d, 1):
+        for j in range(0, d, 1):
+            rx = j - ox
+            ry = i - oy
+            r = np.sqrt(np.power(rx, 2) + np.power(ry, 2))
+            
+            if (r <= (d - 1)/2.0):              
+                t = np.arctan2(ry, rx)
+                if t < 0:
+                    t = t + 2.0*np.pi
+                    
+                ri = r*delta_r
+                rf = np.int_(np.floor(ri))
+                rc = np.int_(np.ceil(ri))
+                
+                if rf < 0:
+                    rf = 0
+                if rc > rows - 1:
+                    rc = rows - 1
+                
+                ti = t/delta_t
+                tf = np.int_(np.floor(ti))
+                tc = np.int_(np.ceil(ti))
+                
+                if tf < 0:
+                    tf = 0
+                if tc > cols - 1:
+                    tc = cols - 1
+                
+                # #选择相应的插值算法
+                dst[i][j][0],val,temp = interpolate_adjacent(src, ri, rf, rc, ti, tf, tc)
+                dst[i][j][1] = val
+                dst[i][j][2] = temp
+                # interpolate_bilinear(src, ri, rf, rc, ti, tf, tc)
+                # dst[i][j][0],val,temp = interpolate_bilinear(src, ri, rf, rc, ti, tf, tc)
+                # dst[i][j][1] = val
+                # dst[i][j][2] = temp
+                # interpolate_bitriple(src, ri, rf, rc, ti, tf, tc, rows, cols)
+                # dst[i][j][0],val,temp = interpolate_bitriple(src, ri, rf, rc, ti, tf, tc, rows, cols)
+                # dst[i][j][1] = val
+                # dst[i][j][2] = temp
+    
+    return dst
+
 def img_polar(imgfile):
     img = io.imread(imgfile)
-    rows, cols, dim = img.shape # 获取图片的行数 列数和通道数
-    img_p = polar_transform(img, rows)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    # img_p = polar_transform(img, rows)
+    img_p = polar3_transform(img, rows)
     return img_p
     #width = cols
     #height = rows
@@ -814,7 +880,7 @@ def img_polar(imgfile):
     #            im.putpixel((w,h),255)
     #return im
 
-def polar_from_dir(imagepath,savepath):
+def polar1_from_dir(imagepath,savepath):
     # str=imagepath+'\\*.jpg'+':'+imagepath+'\\*.png'
     str=imagepath+'\\*.jpg'
     
@@ -822,15 +888,14 @@ def polar_from_dir(imagepath,savepath):
     # io.imshow(coll[0])
     
     # ok ok
-    #scipy.misc.toimage(coll[0], cmin=0.0, cmax=255).save('outfile.jpg')
-    #scipy.misc.toimage(coll[0], mode='P').save('outfile.jpg')
-    scipy.misc.toimage(coll[0]).save('outfile.jpg')
-    #output = scipy.misc.toimage(coll[0])
-    #output.convert('RGBA')
-    #scipy.misc.toimage(output).save('outfile.jpg')
+    # scipy.misc.toimage(coll[0], cmin=0.0, cmax=255).save('outfile.jpg')
+    # scipy.misc.toimage(coll[0], mode='P').save('outfile.jpg')
+    # scipy.misc.toimage(coll[0]).save('outfile.jpg')
 
-    
-    
+    # output = scipy.misc.toimage(coll[0])
+    # output.convert('RGBA')
+    # scipy.misc.toimage(output).save('outfile.jpg')
+   
     # error
     # imgp = Image.fromarray(coll[0])
     # imgp.save('outfile.jpeg')
@@ -842,9 +907,142 @@ def polar_from_dir(imagepath,savepath):
     # matplotlib.image.imsave('name.png', coll[0])
     
     # 循环保存图片
-    # for i in range(len(coll)):
-    #     imgp = Image.fromarray(coll[i])
-    #     io.imsave(savepath + '\\plr_' + np.str(i)+'.jpg',imgp)
+    for i in range(len(coll)):
+    #    imgp = Image.fromarray(coll[i])
+    #    error
+    #    io.imsave(savepath + '\\plr1_' + np.str(i)+'.jpg',coll[i])
+        img_name = savepath + '\\plr1_' + np.str(i)+'.jpg'
+        scipy.misc.toimage(coll[i]).save(img_name)
+
+
+
+# ############################
+# #另一种极坐标转换方法
+# #
+import math
+
+def to_gray(img):
+    w, h,_ = img.shape
+    ret = np.empty((w, h), dtype=np.uint8)
+    retf = np.empty((w, h), dtype=np.float)
+    imgf = img.astype(float)
+    retf[:, :] = ((imgf[:, :, 1] + imgf[:, :, 2] + imgf[:, :, 0])/3)
+    ret = retf.astype(np.uint8)
+    return ret
+
+def radia_transform(im,w,h):
+    shape = im.shape
+
+    new_im = np.zeros(shape)
+    # print(shape)
+    # print(len(shape))
+    # print('w',w)
+    # print('h',h)
+    width = shape[1]
+    height = shape[0]
+    lens = len(shape)
+    for i in range(0,width):
+        xita = 2*3.14159*i/width
+        for a in range(0,height):
+            x = (int)(math.floor(a * math.cos(xita)))
+            y = (int)(math.floor(a * math.sin(xita)))
+            new_y = (int)(h+x)
+            new_x = (int)(w+y)
+            # print(h.dtype)
+            if new_x>=0 and new_x<width:
+                if new_y>=0 and new_y<height:
+                    if lens==3:
+                        new_im[a,i,0] = (im[new_y,new_x,0]-127.5)/128
+                        new_im[a,i,1] = (im[new_y,new_x,1]-127.5)/128
+                        new_im[a,i,2] = (im[new_y,new_x,2]-127.5)/128
+                    else:
+                        new_im[a,i] = (im[new_y,new_x]-127.5)/128
+                        new_im[a,i] = (im[new_y,new_x]-127.5)/128
+                        new_im[a,i] = (im[new_y,new_x]-127.5)/128
+    return new_im
+
+def img_polar2_1(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/10), int(rows))
+    # img_p = radia_transform(img, int(cols/10), int(rows/4*3))
+    # img_p = radia_transform(img, int(cols/2), int(rows/4*3))
+    # img_p = radia_transform(img, int(cols/2), int(rows/2))
+    # img_p = radia_transform(img, int(cols/4), int(rows/4))
+    # img_p = radia_transform(img, int(cols/4*3), int(rows/4*3))
+    # img_p = radia_transform(img, int(cols), int(rows/4*3))
+    
+    return img_p
+
+def img_polar2_2(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/10), int(rows/4*3))
+    return img_p
+
+def img_polar2_3(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/2), int(rows/4*3))
+    return img_p
+
+def img_polar2_4(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/2), int(rows/2))
+    return img_p
+
+def img_polar2_5(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/4), int(rows/4))
+    return img_p
+
+def img_polar2_6(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols/4*3), int(rows/4*3))
+    return img_p
+
+def img_polar2_7(imgfile):
+    img = io.imread(imgfile)
+    # img = to_gray(img)
+    rows, cols, dim = img.shape # 获取图片的行数(高) 列数(宽)和通道数
+    img_p = radia_transform(img, int(cols), int(rows/4*3))
+    return img_p
+
+def polar2_from_dir(imagepath,savepath,flag=1):
+    # str=imagepath+'\\*.jpg'+':'+imagepath+'\\*.png'
+    str=imagepath+'\\*.jpg'
+    
+    if(flag == 1):
+        coll = io.ImageCollection(str,load_func=img_polar2_1)
+    if(flag == 2):
+        coll = io.ImageCollection(str,load_func=img_polar2_2)
+    if(flag == 3):
+        coll = io.ImageCollection(str,load_func=img_polar2_3)
+    if(flag == 4):
+        coll = io.ImageCollection(str,load_func=img_polar2_4)
+    if(flag == 5):
+        coll = io.ImageCollection(str,load_func=img_polar2_5)
+    if(flag == 6):
+        coll = io.ImageCollection(str,load_func=img_polar2_6)
+    if(flag == 7):
+        coll = io.ImageCollection(str,load_func=img_polar2_7)
+    else:
+        coll = io.ImageCollection(str,load_func=img_polar2_1)
+    
+    # scipy.misc.toimage(coll[0]).save('outfile.jpg')
+    # #循环保存图片
+    for i in range(len(coll)):
+        io.imsave(savepath + '\\plr2_' + np.str(i)+'.jpg',coll[i])
+
 
 # ############################
 # # test
@@ -927,6 +1125,6 @@ def polar_from_dir(imagepath,savepath):
 # gaussianzoom_from_dir('./x-gen','./x-pingping-gen')
 
 # #图像的极坐标变换
-# #polar_from_dir('./x-gen','./x-pingping-gen')
-
+polar1_from_dir('./x-gen','./x-pingping-gen')
+# #polar2_from_dir('./x-gen','./x-pingping-gen',2)
 
